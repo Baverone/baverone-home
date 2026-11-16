@@ -176,6 +176,17 @@ ol.rota.sem-num>li::before{content:none}
 .fora{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:12px}
 .fora .alvo{padding:8px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
 @media (max-width:560px){.alvo{grid-template-columns:40px minmax(0,1fr)}.etapas{grid-column:1/-1}}
+/* inventário */
+button.slot{font:inherit;color:inherit;cursor:pointer;width:100%}
+button.slot:not(.own) .sp img{opacity:.8}
+.inv{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);font-size:.9rem;color:var(--muted)}
+.inv b{color:var(--ink);font-family:"Space Grotesk",sans-serif;font-size:1.1rem}
+.inv .acoes{display:flex;gap:6px;margin-left:auto}
+.inv-imp{flex-basis:100%;display:none;gap:8px;flex-direction:column}
+.inv-imp.aberto{display:flex}
+.inv-imp textarea{width:100%;min-height:90px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:inherit;font-size:.85rem}
+.own-btn{font-size:.76rem;padding:4px 9px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);white-space:nowrap}
+.own-btn[aria-pressed=true]{background:var(--c);border-color:var(--c);color:#07080d;font-weight:600}
 footer{margin:70px 0 40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:.82rem}
 footer a{color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -194,6 +205,7 @@ footer a{color:var(--muted)}
     <h1>Os clãs do PokeXGames</h1>
     <p>Escolhe um clã para ver o team que a wikipxg recomenda para mid e late game, e todos os pokemons do clã por tier, com a função de cada um em PvE e em PvP.</p>
     <nav class="picker" id="picker" aria-label="Clãs"></nav>
+    <div class="inv" id="inv-bar"></div>
   </section>
 
   <section class="hero" id="hero-cont" hidden>
@@ -237,7 +249,45 @@ const img = (f, alt, cls="px", lazy=true) => f ? `<img class="${cls}" src="img/$
 const ico = nome => img(D.icones[nome], nome, "px", false);
 const lista = a => a.length > 1 ? a.slice(0,-1).join(", ") + " e " + a.at(-1) : a.join("");
 const link = nome => WIKI + encodeURIComponent(nome.replace(/ /g,"_"));
-const tenho = nome => D.tenho[nome.replace(/ \((TM|TR)\)$/,"")] || D.tenho[nome];
+// inventário: marcado no site, guardado neste browser; o Excel antigo (D.tenho) conta também
+const INV_KEY = "pxg-inventario-v1";
+let INV = new Set();
+try { INV = new Set(JSON.parse(localStorage.getItem(INV_KEY) || "[]")); } catch(e) { INV = new Set(); }
+const invGuardar = () => { try { localStorage.setItem(INV_KEY, JSON.stringify([...INV].sort())); } catch(e) {} };
+const tenho = nome => INV.has(nome) || !!D.tenho[nome];
+const invTexto = () => `Inventário PXG (${INV.size})\n` + [...INV].sort().join("\n");
+
+function invBar(){
+  document.getElementById("inv-bar").innerHTML = `
+    <span>O meu inventário: <b>${INV.size}</b> pokemons. Toca num pokemon para o marcar.</span>
+    <span class="acoes"><button class="chip" id="inv-copiar">Copiar inventário</button><button class="chip" id="inv-abrir">Importar</button></span>
+    <div class="inv-imp" id="inv-imp"><textarea id="inv-txt" placeholder="Cola aqui um inventário copiado (um pokemon por linha)"></textarea>
+      <span><button class="chip" id="inv-importar">Juntar ao inventário</button></span></div>`;
+  document.getElementById("inv-copiar").onclick = async e => {
+    const t = invTexto();
+    try { await navigator.clipboard.writeText(t); e.target.textContent = "Copiado"; }
+    catch(err) { const a = document.getElementById("inv-txt"); document.getElementById("inv-imp").classList.add("aberto"); a.value = t; a.select(); e.target.textContent = "Copia o texto em baixo"; }
+    setTimeout(() => { e.target.textContent = "Copiar inventário"; }, 2500);
+  };
+  document.getElementById("inv-abrir").onclick = () => document.getElementById("inv-imp").classList.toggle("aberto");
+  document.getElementById("inv-importar").onclick = () => {
+    const conhecidos = new Set([...Object.keys(D.pokes), ...D.clas.flatMap(c => c.team.map(t => t.nome)), ...Object.keys(D.sprite_de)]);
+    const nomes = document.getElementById("inv-txt").value.split(/[\n;,]+/).map(x => x.trim()).filter(x => x && !x.startsWith("Inventário PXG"));
+    const bons = nomes.filter(n => conhecidos.has(n)), maus = nomes.filter(n => !conhecidos.has(n));
+    bons.forEach(n => INV.add(n)); invGuardar(); rota();
+    if (maus.length) alert(`Juntei ${bons.length}. Não reconheci: ${maus.join(", ")}`);
+  };
+}
+
+// um clique em qualquer [data-inv] marca ou desmarca o pokemon
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-inv]");
+  if (!b) return;
+  const n = b.dataset.inv;
+  INV.has(n) ? INV.delete(n) : INV.add(n);
+  invGuardar();
+  const y = scrollY; rota(); scrollTo(0, y);
+});
 
 function picker(){
   document.getElementById("picker").innerHTML = D.clas.map(c => {
@@ -252,11 +302,11 @@ function picker(){
 function slot(t){
   const own = tenho(t.nome);
   const t1 = /^1/.test(t.tier);
-  return `<a class="slot${own?" own":""}" href="${link(t.nome)}" target="_blank" rel="noopener">
+  return `<button class="slot${own?" own":""}" data-inv="${esc(t.nome)}" aria-pressed="${!!own}" title="${own ? "Desmarcar" : "Marcar"} ${esc(t.nome)} como meu">
     ${own?'<span class="tag-own">Tenho</span>':""}
     <span class="sp">${img(t.sprite, t.nome, "px", false)}</span>
     <span class="n">${esc(t.nome)}</span>
-    <span class="meta">${t.funcao.map(ico).join("")}<span class="tier${t1?" t1":""}">${esc(t.tier)}</span></span></a>`;
+    <span class="meta">${t.funcao.map(ico).join("")}<span class="tier${t1?" t1":""}">${esc(t.tier)}</span></span></button>`;
 }
 
 function linhas(c){
@@ -271,8 +321,8 @@ function linhas(c){
     (porTier[i.tier] ??= []).push([p, i]);
   }
   const ordem = ORDEM.filter(t => porTier[t]);
-  if (!ordem.length) return `<div class="empty">${estado.meus && !Object.keys(D.tenho).length
-    ? "O inventário ainda está vazio. Quando preencher o inventario.xlsx, os pokemons que tenho aparecem aqui."
+  if (!ordem.length) return `<div class="empty">${estado.meus && !c.pokes.some(tenho)
+    ? "Ainda não marcaste nenhum pokemon deste clã. Toca em «Tenho» numa linha ou num pokemon do team."
     : "Nenhum pokemon deste clã com estes filtros. Tira um filtro para ver mais."}</div>`;
   const els = tiposDo(c);
   const tipo = p => p.elementos.find(e => els.includes(e)) || p.elementos[0] || "Outros";
@@ -299,7 +349,7 @@ function tabela(l){
         <span class="ics c-pve">${i.pve.map(ico).join("")}</span>
         <span class="ics c-pvp">${i.pvp.map(ico).join("")}</span>
         <span class="ics c-held">${i.held.map(ico).join("")}</span>
-        <span class="c-own">${own?`<span class="own-dot">Tenho${own.tenho>1?" ×"+own.tenho:""}${own["nível"]?" · nv "+own["nível"]:""}</span>`:""}</span></div>`;
+        <span class="c-own"><button class="own-btn" data-inv="${esc(p.nome)}" aria-pressed="${!!own}">Tenho</button></span></div>`;
     }).join("")}</div>`;
 }
 
@@ -341,7 +391,7 @@ function render(){
     </section>
 
     <h3 class="sec">Team mid-late game</h3>
-    <p class="lead">A rotação que a wiki recomenda depois do early game, por elemento do clã. O ícone diz a função do pokemon no team; a etiqueta diz o tier.</p>
+    <p class="lead">A rotação que a wiki recomenda depois do early game, por elemento do clã. O ícone diz a função do pokemon no team; a etiqueta diz o tier. Toca num pokemon para o marcar como teu.</p>
     ${grupos.map(g => `<div class="group"><h4>${ico(g)}${esc(g||"")}</h4>
       <div class="party">${c.team.filter(t => t.grupo === g).map(slot).join("")}</div></div>`).join("")}
 
@@ -461,12 +511,12 @@ function info(n){
 
 function slotCont(n){
   const own = tenho(n), x = info(n);
-  return `<a class="slot${own?" own":""}" href="${link(n)}" target="_blank" rel="noopener">
+  return `<button class="slot${own?" own":""}" data-inv="${esc(n)}" aria-pressed="${!!own}" title="${own ? "Desmarcar" : "Marcar"} ${esc(n)} como meu">
     ${own?'<span class="tag-own">Tenho</span>':""}
     <span class="sp">${img(D.sprite_de[n], n, "px", false)}</span>
     <span class="n">${esc(n)}</span>
     ${x.cla?`<span class="cl">${esc(x.cla)}</span>`:""}
-    <span class="meta">${x.f.map(ico).join("")}${x.tier?`<span class="tier${/^1/.test(x.tier)?" t1":""}">${esc(x.tier)}</span>`:""}</span></a>`;
+    <span class="meta">${x.f.map(ico).join("")}${x.tier?`<span class="tier${/^1/.test(x.tier)?" t1":""}">${esc(x.tier)}</span>`:""}</span></button>`;
 }
 
 function renderCont(id){
@@ -492,6 +542,7 @@ function renderCont(id){
 }
 
 function rota(){
+  invBar();
   const h = decodeURIComponent(location.hash.slice(1));
   const emCont = h.startsWith("conteudo"), emPl = h === "pokelog";
   document.getElementById("hero-clas").hidden = emCont || emPl;
