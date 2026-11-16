@@ -98,6 +98,9 @@ input.search::placeholder{color:var(--dim)}
 .tierblock{margin-top:26px}
 .tierblock h4{display:flex;align-items:baseline;gap:12px;font-family:"Space Grotesk",sans-serif;font-size:1.15rem;margin-bottom:8px}
 .tierblock h4 small{font-family:Inter,sans-serif;font-weight:400;color:var(--dim);font-size:.82rem}
+h5.tipo{display:flex;align-items:center;gap:8px;font-size:.92rem;font-weight:600;color:var(--muted);margin:14px 0 8px}
+h5.tipo img{width:20px;height:20px}
+h5.tipo small{color:var(--dim);font-weight:400}
 .rows{border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .row{display:grid;grid-template-columns:56px minmax(0,1.6fr) 70px 1fr 1fr 1fr 64px;gap:12px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);background:var(--panel)}
 .row:first-child{border-top:0}
@@ -161,11 +164,13 @@ const TIERS = {
   "1B":"Shiny ou Mega, muito fortes em PvP",
   "1C":"fortes em PvE e PvP",
   "1H":"só PvE, os melhores para hunt",
-  "TM":"Technical Machine",
-  "TR":"Technical Records",
   "2":"nível 100",
-  "3":"nível 80"
+  "3":"nível 80",
+  "TM":"Technical Machine",
+  "TR":"Technical Records"
 };
+const ORDEM = ["1A","1B","1C","1H","2","3","TM","TR"]; // ordem do André (16/11)
+const POR_TIPO = t => !["1A","1B","1C"].includes(t); // do 1H para baixo: separados por tipo
 let D, estado = {cla:null, role:null, modo:"pve", meus:false, q:""};
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -177,7 +182,7 @@ const tenho = nome => D.tenho[nome.replace(/ \((TM|TR)\)$/,"")] || D.tenho[nome]
 
 function picker(){
   document.getElementById("picker").innerHTML = D.clas.map(c => {
-    const els = [...new Set(c.team.map(t => t.grupo).filter(Boolean))];
+    const els = tiposDo(c);
     return `<button class="clan" style="--k:${c.cor}" data-c="${c.nome}" aria-pressed="false">
       <span class="els">${els.map(ico).join("")}</span>
       <span><b>${c.nome}</b><small>${lista(els)}</small></span></button>`;
@@ -206,13 +211,27 @@ function linhas(c){
     if (q && !nome.toLowerCase().includes(q)) continue;
     (porTier[i.tier] ??= []).push([p, i]);
   }
-  const ordem = Object.keys(TIERS).filter(t => porTier[t]);
+  const ordem = ORDEM.filter(t => porTier[t]);
   if (!ordem.length) return `<div class="empty">${estado.meus && !Object.keys(D.tenho).length
     ? "O inventário ainda está vazio. Quando preencher o inventario.xlsx, os pokemons que tenho aparecem aqui."
     : "Nenhum pokemon deste clã com estes filtros. Tira um filtro para ver mais."}</div>`;
-  return ordem.map(t => `<div class="tierblock"><h4>Tier ${t}<small>${TIERS[t]} · ${porTier[t].length}</small></h4>
-    <div class="rows"><div class="row hd"><span></span><span>Pokemon</span><span>Elementos</span><span>Função PvE</span><span>Função PvP</span><span>Held</span><span></span></div>
-    ${porTier[t].map(([p,i]) => {
+  const els = tiposDo(c);
+  const tipo = p => p.elementos.find(e => els.includes(e)) || p.elementos[0] || "Outros";
+  return ordem.map(t => {
+    const lst = porTier[t];
+    const partes = POR_TIPO(t) && els.length > 1
+      ? els.concat("Outros").map(e => [e, lst.filter(([p]) => (els.includes(tipo(p)) ? tipo(p) : "Outros") === e)]).filter(([,l]) => l.length)
+      : [[null, lst]];
+    return `<div class="tierblock"><h4>Tier ${t}<small>${TIERS[t]} · ${lst.length}</small></h4>
+    ${partes.map(([e, l]) => `${e ? `<h5 class="tipo">${ico(e)}${esc(e)}<small>${l.length}</small></h5>` : ""}${tabela(l)}`).join("")}</div>`;
+  }).join("");
+}
+
+function tiposDo(c){ return [...new Set(c.team.map(t => t.grupo).filter(Boolean))]; }
+
+function tabela(l){
+  return `<div class="rows"><div class="row hd"><span></span><span>Pokemon</span><span>Elementos</span><span>Função PvE</span><span>Função PvP</span><span>Held</span><span></span></div>
+    ${l.map(([p,i]) => {
       const own = tenho(p.nome);
       return `<div class="row${own?" own":""}">
         <span class="sp">${img(p.sprite, p.nome)}</span>
@@ -222,7 +241,7 @@ function linhas(c){
         <span class="ics c-pvp">${i.pvp.map(ico).join("")}</span>
         <span class="ics c-held">${i.held.map(ico).join("")}</span>
         <span class="c-own">${own?`<span class="own-dot">Tenho${own.tenho>1?" ×"+own.tenho:""}${own["nível"]?" · nv "+own["nível"]:""}</span>`:""}</span></div>`;
-    }).join("")}</div></div>`).join("");
+    }).join("")}</div>`;
 }
 
 function filtros(c){
@@ -268,7 +287,7 @@ function render(){
       <div class="party">${c.team.filter(t => t.grupo === g).map(slot).join("")}</div></div>`).join("")}
 
     <h3 class="sec">Todos os pokemons do clã</h3>
-    <p class="lead">Por tier, do mais raro ao mais comum. Tier compara pokemons com a mesma função: diz a raridade e o desempenho.</p>
+    <p class="lead">Por tier: 1A, 1B e 1C primeiro, depois 1H, 2, 3, TM e TR, estes separados por tipo. Tier compara pokemons com a mesma função: diz a raridade e o desempenho.</p>
     ${filtros(c)}
     <div id="linhas">${linhas(c)}</div>
 
@@ -277,7 +296,7 @@ function render(){
       <div class="excl">${c.exclusivos.map(e => `<a href="${link(e.nome)}" target="_blank" rel="noopener">${img(e.sprite, e.nome)}${esc(e.nome)}</a>`).join("")}</div>` : ""}
 
     <h3 class="sec">O que quer dizer cada tier</h3>
-    <dl class="legend">${Object.entries(TIERS).map(([t,d]) => `<dt>${t}</dt><dd>${d}</dd>`).join("")}</dl>`;
+    <dl class="legend">${ORDEM.map(t => `<dt>${t}</dt><dd>${TIERS[t]}</dd>`).join("")}</dl>`;
 
   const box = document.getElementById("cla");
   box.querySelectorAll("[data-modo]").forEach(b => b.onclick = () => { estado.modo = b.dataset.modo; render(); });
