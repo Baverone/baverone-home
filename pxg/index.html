@@ -146,6 +146,31 @@ dl.legend dt{font-weight:600;color:var(--ink)}
 .fontes a{color:var(--muted)}
 .slot .cl{font-size:.72rem;color:var(--dim)}
 @media (max-width:560px){header{flex-wrap:wrap;gap:12px}.src{display:none}}
+/* Pokélog */
+.pl-total{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 18px;margin-top:34px}
+.pl-total b{font-family:"Space Grotesk",sans-serif;font-size:2.4rem;letter-spacing:-.02em;color:var(--c)}
+.pl-total span{color:var(--muted)}
+.runas{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.runa{font-size:.78rem;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
+.runa.ok{border-color:var(--c);color:var(--ink);background:color-mix(in srgb,var(--c) 16%,var(--panel))}
+ol.rota{list-style:none;counter-reset:h;display:flex;flex-direction:column;gap:10px;margin-top:16px}
+ol.rota>li{counter-increment:h;display:grid;grid-template-columns:44px 1fr;gap:12px;padding:14px;border-radius:16px;background:var(--panel);border:1px solid var(--line)}
+ol.rota>li::before{content:counter(h);font-family:"Space Grotesk",sans-serif;font-size:1.3rem;color:var(--dim);text-align:center;padding-top:2px}
+ol.rota>li.feita{opacity:.55}
+.h-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin-bottom:8px}
+.h-top a{font-weight:600;text-decoration:none}
+.h-top a:hover{text-decoration:underline;text-decoration-color:var(--c)}
+.alvos{display:flex;flex-direction:column;gap:8px}
+.alvo{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:10px}
+.alvo .sp img{height:40px;width:auto;display:block;margin:auto}
+.alvo .nm{font-size:.92rem;font-weight:600;line-height:1.25}
+.alvo .nm small{display:block;font-weight:400;color:var(--dim);font-size:.76rem}
+.etapas{display:flex;gap:5px}
+.st{font-size:.76rem;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);white-space:nowrap}
+.st[aria-pressed=true]{background:var(--c);border-color:var(--c);color:#07080d;font-weight:600}
+.fora{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:12px}
+.fora .alvo{padding:8px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+@media (max-width:560px){.alvo{grid-template-columns:40px minmax(0,1fr)}.etapas{grid-column:1/-1}}
 footer{margin:70px 0 40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:.82rem}
 footer a{color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -156,7 +181,7 @@ footer a{color:var(--muted)}
 <div class="wrap">
   <header>
     <a class="back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Baverone</a>
-    <nav class="tabs" aria-label="Secções"><a href="#Volcanic" id="tab-clas">Clãs</a><a href="#conteudo/hunts" id="tab-cont">Por conteúdo</a></nav>
+    <nav class="tabs" aria-label="Secções"><a href="#Volcanic" id="tab-clas">Clãs</a><a href="#conteudo/hunts" id="tab-cont">Por conteúdo</a><a href="#pokelog" id="tab-pl">Pokélog</a></nav>
     <span class="src" id="src"></span>
   </header>
 
@@ -170,6 +195,11 @@ footer a{color:var(--muted)}
     <h1>O melhor pokemon para cada conteúdo</h1>
     <p>O que é top numa hunt é mau num boss, e o que domina o PvP nem entra nas hunts. Escolhe o conteúdo para ver as funções que pede e os pokemons que a wiki e os criadores de 2025–2026 recomendam.</p>
     <nav class="picker" id="picker-cont" aria-label="Conteúdos"></nav>
+  </section>
+
+  <section class="hero" id="hero-pl" hidden>
+    <h1>Pokélog rápido para as Runas</h1>
+    <p>Quase todos os pontos vêm de Shinies, Megas e Bosses: 5, 20 e 40 abates dão cerca de 70 pontos, enquanto um comum pede 5 000 abates para 31. Segue a rota pelas hunts da Nightmare World e marca cada etapa que fechares; fica guardado neste browser.</p>
   </section>
 
   <main id="cla"></main>
@@ -331,6 +361,79 @@ function render(){
 }
 
 const COR_CONT = "#a77bff";
+const COR_PL = "#38d39f";
+const RUNAS = [["Tempest",800],["Frozen",900],["Flamewing",1000],["Unscathed",1100],["Ocean",1200],["Nightmare",1400],["Victory",2000],["Powerful",2000],["Sacred",2300],["Guardian",2400],["Heroic",2400],["Celestial",2600]];
+const PL_KEY = "pxg-pokelog-v1";
+let PL = {};
+try { PL = JSON.parse(localStorage.getItem(PL_KEY) || "{}") || {}; } catch(e) { PL = {}; }
+const plGuardar = () => { try { localStorage.setItem(PL_KEY, JSON.stringify(PL)); } catch(e) {} };
+const plFeito = (n, i) => !!PL[n + "|" + i];
+
+function alvoHtml(a){
+  return `<div class="alvo">
+    <span class="sp">${img(a.foto, a.nome)}</span>
+    <span class="nm">${esc(a.nome)}<small>${a.papel ? esc(a.papel) + " · " : ""}${esc(a.elemento.replace(/,/g, ", "))}</small></span>
+    <span class="etapas">${a.etapas.map(([q, p], i) =>
+      `<button class="st" data-n="${esc(a.nome)}" data-i="${i}" aria-pressed="${plFeito(a.nome, i)}" title="Etapa ${i+1}: ${q} abates, ${p} pontos">${q} ab · ${p} pts</button>`).join("")}</span></div>`;
+}
+
+function plPontos(){
+  const todos = D.pokelog.rota.flatMap(h => h.alvos).concat(D.pokelog.fora.flatMap(g => g.pokes));
+  return todos.reduce((s, a) => s + a.etapas.reduce((t, [, p], i) => t + (plFeito(a.nome, i) ? p : 0), 0), 0);
+}
+
+function renderPl(){
+  document.documentElement.style.setProperty("--c", COR_PL);
+  const R = D.pokelog, pts = plPontos();
+  const totRota = R.rota.reduce((s, h) => s + h.alvos.reduce((t, a) => t + a.etapas.reduce((u, [, p]) => u + p, 0), 0), 0);
+  const q = (estado.plq || "").toLowerCase();
+  document.getElementById("cla").innerHTML = `
+    <section class="pl-total"><b>${pts}</b><span>pontos marcados · a rota da NW vale ${totRota}</span></section>
+    <div class="runas">${RUNAS.map(([n, c]) => `<span class="runa${pts >= c ? " ok" : ""}">${n} ${c}</span>`).join("")}</div>
+
+    <h3 class="sec">Rota na Nightmare World</h3>
+    <p class="lead">${R.rota.length} hunts por ordem: primeiro as que têm Boss e Angry shiny, depois as de um só alvo. Só a 1.ª etapa de todos dá perto de 500 pontos com uns 250 abates.</p>
+    <ol class="rota">${R.rota.map(h => {
+      const feita = h.alvos.every(a => a.etapas.every((_, i) => plFeito(a.nome, i)));
+      return `<li class="${feita ? "feita" : ""}"><div>
+        <div class="h-top"><a href="${h.url}" target="_blank" rel="noopener">${esc(h.hunt)}</a><span class="tier">${esc(h.dificuldade)}</span></div>
+        <div class="alvos">${h.alvos.map(alvoHtml).join("")}</div></div></li>`;
+    }).join("")}</ol>
+
+    <h3 class="sec">Fora da Nightmare World</h3>
+    <p class="lead">A wiki não diz onde aparecem. Mata-os sempre que os vires: cada um vale 30 a 70 pontos.</p>
+    <div class="filters"><input class="search" id="plq" type="search" placeholder="Procurar pokemon ou elemento" value="${esc(estado.plq || "")}" aria-label="Procurar pokemon ou elemento"></div>
+    <div id="pl-fora">${foraHtml(q)}</div>
+
+    <h3 class="sec">A confirmar no jogo</h3>
+    <p class="lead">Acima do nível 550 as hunts de dificuldade Baixa já não dão XP nem loot; a wiki não diz se os abates contam para o Pokélog. Antes de ir a uma só por pontos, mata um pokemon e vê se o contador sobe (tecla P). A wiki também não diz de quanto em quanto tempo aparece o Boss de cada hunt.</p>
+    <p class="fontes">Fontes: <a href="https://wiki.pokexgames.com/Pok%C3%A9log_Planner" target="_blank" rel="noopener">Pokélog Planner</a> · <a href="https://wiki.pokexgames.com/index.php/Pok%C3%A9log" target="_blank" rel="noopener">Pokélog</a> · páginas das hunts da Nightmare World (wikipxg, 16/11/2026)</p>`;
+  ligarPl();
+}
+
+function foraHtml(q){
+  return D.pokelog.fora.map(g => {
+    const l = g.pokes.filter(a => !q || a.nome.toLowerCase().includes(q) || a.elemento.toLowerCase().includes(q));
+    return l.length ? `<div class="group"><h4>${esc(g.grupo)} · ${l.length}</h4><div class="fora">${l.map(alvoHtml).join("")}</div></div>` : "";
+  }).join("") || '<div class="empty">Nenhum pokemon com esse nome ou elemento.</div>';
+}
+
+function ligarPl(){
+  const box = document.getElementById("cla");
+  box.querySelectorAll(".st").forEach(b => b.onclick = () => {
+    const n = b.dataset.n, i = +b.dataset.i, novo = !plFeito(n, i);
+    // marcar uma etapa marca as anteriores; desmarcar desmarca as seguintes
+    for (let k = 0; k < 3; k++) if (novo ? k <= i : k >= i) { if (novo) PL[n + "|" + k] = true; else delete PL[n + "|" + k]; }
+    plGuardar(); const y = scrollY; renderPl(); scrollTo(0, y);
+  });
+  const s = box.querySelector("#plq");
+  s.oninput = () => {
+    estado.plq = s.value;
+    document.getElementById("pl-fora").innerHTML = foraHtml(s.value.toLowerCase());
+    ligarPl();
+  };
+}
+
 
 function pickerCont(){
   const itens = D.conteudos.map(x => [x.id, x.nome, x.nivel]).concat([["versateis","Servem em tudo","vários conteúdos"]]);
@@ -379,11 +482,12 @@ function renderCont(id){
 
 function rota(){
   const h = decodeURIComponent(location.hash.slice(1));
-  const emCont = h.startsWith("conteudo");
-  document.getElementById("hero-clas").hidden = emCont;
+  const emCont = h.startsWith("conteudo"), emPl = h === "pokelog";
+  document.getElementById("hero-clas").hidden = emCont || emPl;
   document.getElementById("hero-cont").hidden = !emCont;
-  document.getElementById("tab-clas").toggleAttribute("aria-current", !emCont);
-  document.getElementById("tab-cont").toggleAttribute("aria-current", emCont);
+  document.getElementById("hero-pl").hidden = !emPl;
+  for (const t of ["tab-clas","tab-cont","tab-pl"]) document.getElementById(t).removeAttribute("aria-current");
+  if (emPl){ document.getElementById("tab-pl").setAttribute("aria-current","page"); renderPl(); return; }
   if (!emCont) document.getElementById("tab-clas").setAttribute("href", "#" + (estado.cla || "Volcanic"));
   if (emCont){ document.getElementById("tab-cont").setAttribute("aria-current","page"); renderCont(h.split("/")[1] || "hunts"); return; }
   document.getElementById("tab-clas").setAttribute("aria-current","page");
