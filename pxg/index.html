@@ -157,6 +157,11 @@ ol.rota{list-style:none;counter-reset:h;display:flex;flex-direction:column;gap:1
 ol.rota>li{counter-increment:h;display:grid;grid-template-columns:44px 1fr;gap:12px;padding:14px;border-radius:16px;background:var(--panel);border:1px solid var(--line)}
 ol.rota>li::before{content:counter(h);font-family:"Space Grotesk",sans-serif;font-size:1.3rem;color:var(--dim);text-align:center;padding-top:2px}
 ol.rota>li.feita{opacity:.55}
+ol.rota.sem-num>li{grid-template-columns:1fr}
+ol.rota.sem-num>li::before{content:none}
+.h-top b{font-weight:600}
+.h-top b a{text-decoration:none}
+.h-top b a:hover{text-decoration:underline;text-decoration-color:var(--c)}
 .h-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin-bottom:8px}
 .h-top a{font-weight:600;text-decoration:none}
 .h-top a:hover{text-decoration:underline;text-decoration-color:var(--c)}
@@ -199,7 +204,7 @@ footer a{color:var(--muted)}
 
   <section class="hero" id="hero-pl" hidden>
     <h1>Pokélog rápido para as Runas</h1>
-    <p>Quase todos os pontos vêm de Shinies, Megas e Bosses: 5, 20 e 40 abates dão cerca de 70 pontos, enquanto um comum pede 5 000 abates para 31. Segue a rota pelas hunts da Nightmare World e marca cada etapa que fechares; fica guardado neste browser.</p>
+    <p>Quase todos os pontos vêm de Shinies, Megas e Bosses: 5, 20 e 40 abates dão cerca de 70 pontos, enquanto um comum pede 5 000 abates para 31. Segue a rota por zonas do jogo todo e marca cada etapa que fechares; fica guardado neste browser.</p>
   </section>
 
   <main id="cla"></main>
@@ -372,50 +377,57 @@ const plFeito = (n, i) => !!PL[n + "|" + i];
 function alvoHtml(a){
   return `<div class="alvo">
     <span class="sp">${img(a.foto, a.nome)}</span>
-    <span class="nm">${esc(a.nome)}<small>${a.papel ? esc(a.papel) + " · " : ""}${esc(a.elemento.replace(/,/g, ", "))}</small></span>
+    <span class="nm">${esc(a.nome)}<small>${a.papel ? esc(a.papel) + " · " : ""}${esc(a.elemento.replace(/,/g, ", "))}${a.lento ? " · respawn de horas: faz só a 1.ª etapa" : ""}</small></span>
     <span class="etapas">${a.etapas.map(([q, p], i) =>
       `<button class="st" data-n="${esc(a.nome)}" data-i="${i}" aria-pressed="${plFeito(a.nome, i)}" title="Etapa ${i+1}: ${q} abates, ${p} pontos">${q} ab · ${p} pts</button>`).join("")}</span></div>`;
 }
 
-function plPontos(){
-  const todos = D.pokelog.rota.flatMap(h => h.alvos).concat(D.pokelog.fora.flatMap(g => g.pokes));
-  return todos.reduce((s, a) => s + a.etapas.reduce((t, [, p], i) => t + (plFeito(a.nome, i) ? p : 0), 0), 0);
+const plAlvos = () => D.pokelog.zonas.flatMap(z => z.alvos);
+const plPontos = () => plAlvos().reduce((s, a) => s + a.etapas.reduce((t, [, p], i) => t + (plFeito(a.nome, i) ? p : 0), 0), 0);
+const zonaFeita = z => z.alvos.every(a => a.etapas.every((_, i) => plFeito(a.nome, i)));
+
+function zonaHtml(z, q){
+  const alvos = z.alvos.filter(a => !q || a.nome.toLowerCase().includes(q) || a.elemento.toLowerCase().includes(q) || z.sitio.toLowerCase().includes(q) || z.regiao.toLowerCase().includes(q));
+  if (!alvos.length) return "";
+  const titulo = z.regiao === "Nightmare World" ? `Nightmare World · ${z.url ? `<a href="${z.url}" target="_blank" rel="noopener">${esc(z.sitio)}</a>` : esc(z.sitio)}` : `${esc(z.regiao)}${z.sitio ? " · " + esc(z.sitio) : ""}`;
+  const marca = z.regiao === "Nightmare World"
+    ? `<span class="tier">${esc(z.dificuldade)}</span>${z.do_cla ? `<span class="tier t1">indicada para ${esc(D.pokelog.cla)}</span>` : `<span class="tier">indicada para ${esc(z.clas)}</span>`}` : "";
+  return `<li class="${zonaFeita(z) ? "feita" : ""}"><div>
+    <div class="h-top"><b>${titulo}</b>${marca}<span class="tier">${z.pontos} pts</span></div>
+    <div class="alvos">${alvos.map(alvoHtml).join("")}</div></div></li>`;
+}
+
+function zonasHtml(q){
+  const Z = D.pokelog.zonas;
+  const fora = z => z.regiao === "Nightmare World" && !z.do_cla;
+  const sem = z => z.regiao === "Sem local na wiki";
+  const bloco = (lista, numerada) => { const h = lista.map(z => zonaHtml(z, q)).join(""); return h ? `<ol class="rota${numerada ? "" : " sem-num"}">${h}</ol>` : ""; };
+  const a = bloco(Z.filter(z => !fora(z) && !sem(z)), true);
+  const b = bloco(Z.filter(fora), false);
+  const c = bloco(Z.filter(sem), false);
+  if (!a && !b && !c) return '<div class="empty">Nenhum alvo com esse nome, elemento ou sítio.</div>';
+  return `${a}
+    ${b ? `<h3 class="sec">Nightmare World fora do teu clã</h3><p class="lead">Hunts que a wiki indica para outros clãs. A 600 dá para fazer, mas o ${esc(D.pokelog.cla)} não bate efetivo lá: deixa para o fim.</p>${b}` : ""}
+    ${c ? `<h3 class="sec">Sem local na wiki</h3><p class="lead">Nenhuma task, hunt ou página de região diz onde aparecem. Mata-os quando os vires.</p>${c}` : ""}`;
 }
 
 function renderPl(){
   document.documentElement.style.setProperty("--c", COR_PL);
   const R = D.pokelog, pts = plPontos();
-  const totRota = R.rota.reduce((s, h) => s + h.alvos.reduce((t, a) => t + a.etapas.reduce((u, [, p]) => u + p, 0), 0), 0);
   const q = (estado.plq || "").toLowerCase();
   document.getElementById("cla").innerHTML = `
-    <section class="pl-total"><b>${pts}</b><span>pontos marcados · a rota da NW vale ${totRota}</span></section>
+    <section class="pl-total"><b>${pts}</b><span>pontos marcados de ${R.zonas.reduce((s, z) => s + z.pontos, 0)} possíveis nos alvos S e A</span></section>
     <div class="runas">${RUNAS.map(([n, c]) => `<span class="runa${pts >= c ? " ok" : ""}">${n} ${c}</span>`).join("")}</div>
 
-    <h3 class="sec">Rota na Nightmare World</h3>
-    <p class="lead">${R.rota.length} hunts por ordem: primeiro as que têm Boss e Angry shiny, depois as de um só alvo. Só a 1.ª etapa de todos dá perto de 500 pontos com uns 250 abates.</p>
-    <ol class="rota">${R.rota.map(h => {
-      const feita = h.alvos.every(a => a.etapas.every((_, i) => plFeito(a.nome, i)));
-      return `<li class="${feita ? "feita" : ""}"><div>
-        <div class="h-top"><a href="${h.url}" target="_blank" rel="noopener">${esc(h.hunt)}</a><span class="tier">${esc(h.dificuldade)}</span></div>
-        <div class="alvos">${h.alvos.map(alvoHtml).join("")}</div></div></li>`;
-    }).join("")}</ol>
-
-    <h3 class="sec">Fora da Nightmare World</h3>
-    <p class="lead">A wiki não diz onde aparecem. Mata-os sempre que os vires: cada um vale 30 a 70 pontos.</p>
-    <div class="filters"><input class="search" id="plq" type="search" placeholder="Procurar pokemon ou elemento" value="${esc(estado.plq || "")}" aria-label="Procurar pokemon ou elemento"></div>
-    <div id="pl-fora">${foraHtml(q)}</div>
+    <h3 class="sec">Rota para ${esc(R.cla)}</h3>
+    <p class="lead">Por zonas, da que dá mais pontos para a que dá menos. Na Outland os shinies saem ao acaso em qualquer hunt; em Orre os Megas aparecem ao lurar a espécie e os Bosses nos respawns da região; em Kanto, Johto e no Arquipélago o sítio é o da task que pede a espécie (aproximado). As hunts da Nightmare World indicadas para ${esc(R.cla)} estão na rota; as outras ficam à parte.</p>
+    <div class="filters"><input class="search" id="plq" type="search" placeholder="Procurar pokemon, elemento ou sítio" value="${esc(estado.plq || "")}" aria-label="Procurar pokemon, elemento ou sítio"></div>
+    <div id="pl-zonas">${zonasHtml(q)}</div>
 
     <h3 class="sec">A confirmar no jogo</h3>
-    <p class="lead">Acima do nível 550 as hunts de dificuldade Baixa já não dão XP nem loot; a wiki não diz se os abates contam para o Pokélog. Antes de ir a uma só por pontos, mata um pokemon e vê se o contador sobe (tecla P). A wiki também não diz de quanto em quanto tempo aparece o Boss de cada hunt.</p>
-    <p class="fontes">Fontes: <a href="https://wiki.pokexgames.com/Pok%C3%A9log_Planner" target="_blank" rel="noopener">Pokélog Planner</a> · <a href="https://wiki.pokexgames.com/index.php/Pok%C3%A9log" target="_blank" rel="noopener">Pokélog</a> · páginas das hunts da Nightmare World (wikipxg, 16/11/2026)</p>`;
+    <p class="lead">Os shinies saem ao acaso, por isso os pontos de uma zona são o que lá há para fazer, não o que se faz numa visita. Alvos com respawn de horas (Mamoswine, Porygon-Z, Shiny Mega Metagross) levam dias até aos 40 abates. Acima do nível 550 as hunts de dificuldade Baixa da NW já não dão XP nem loot; a wiki não diz se os abates contam para o Pokélog. O que se mata nas Dimensional Zones e nas Rifts não conta.</p>
+    <p class="fontes">Fontes: <a href="https://wiki.pokexgames.com/Pok%C3%A9log_Planner" target="_blank" rel="noopener">Pokélog Planner</a> · <a href="https://wiki.pokexgames.com/index.php/Pok%C3%A9log" target="_blank" rel="noopener">Pokélog</a> · <a href="https://wiki.pokexgames.com/index.php/Tasks" target="_blank" rel="noopener">Tasks</a> · <a href="https://wiki.pokexgames.com/index.php/Outland" target="_blank" rel="noopener">Outland</a> · <a href="https://wiki.pokexgames.com/index.php/Orre" target="_blank" rel="noopener">Orre</a> · <a href="https://wiki.pokexgames.com/index.php/Tempo_de_Respawn" target="_blank" rel="noopener">Tempo de Respawn</a> · hunts da Nightmare World (wikipxg, 16/11/2026)</p>`;
   ligarPl();
-}
-
-function foraHtml(q){
-  return D.pokelog.fora.map(g => {
-    const l = g.pokes.filter(a => !q || a.nome.toLowerCase().includes(q) || a.elemento.toLowerCase().includes(q));
-    return l.length ? `<div class="group"><h4>${esc(g.grupo)} · ${l.length}</h4><div class="fora">${l.map(alvoHtml).join("")}</div></div>` : "";
-  }).join("") || '<div class="empty">Nenhum pokemon com esse nome ou elemento.</div>';
 }
 
 function ligarPl(){
@@ -429,11 +441,10 @@ function ligarPl(){
   const s = box.querySelector("#plq");
   s.oninput = () => {
     estado.plq = s.value;
-    document.getElementById("pl-fora").innerHTML = foraHtml(s.value.toLowerCase());
+    document.getElementById("pl-zonas").innerHTML = zonasHtml(s.value.toLowerCase());
     ligarPl();
   };
 }
-
 
 function pickerCont(){
   const itens = D.conteudos.map(x => [x.id, x.nome, x.nivel]).concat([["versateis","Servem em tudo","vários conteúdos"]]);
