@@ -129,6 +129,23 @@ h5.tipo small{color:var(--dim);font-weight:400}
 dl.legend{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin-top:12px;font-size:.88rem;color:var(--muted);max-width:720px}
 dl.legend dt{font-weight:600;color:var(--ink)}
 
+/* navegação entre clãs e conteúdos */
+.tabs{display:flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+.tabs a{padding:6px 14px;border-radius:999px;text-decoration:none;font-size:.88rem;color:var(--muted)}
+.tabs a[aria-current=page]{background:color-mix(in srgb,var(--c) 20%,var(--panel2));color:var(--ink)}
+.cont{--k:var(--c);flex-direction:column;align-items:flex-start;gap:2px;text-decoration:none}
+.cont small{font-size:.76rem}
+.cont-head h2{font-family:"Space Grotesk",sans-serif;font-size:clamp(2rem,5vw,3.2rem);letter-spacing:-.03em;line-height:1;color:var(--c);margin-top:40px}
+.cont-head .facts{margin-top:14px}
+.cont-head .facts b{font-size:1.15rem}
+.resumo{max-width:70ch;margin-top:18px;font-size:1.02rem}
+.nota{color:var(--muted);font-size:.9rem;max-width:72ch;margin:-4px 0 12px}
+.evitar{margin-top:22px;padding:12px 16px;border-left:3px solid var(--c);background:var(--panel);border-radius:0 12px 12px 0;color:var(--muted);font-size:.92rem;max-width:72ch}
+.evitar b{color:var(--ink)}
+.fontes{margin-top:26px;font-size:.84rem;color:var(--dim)}
+.fontes a{color:var(--muted)}
+.slot .cl{font-size:.72rem;color:var(--dim)}
+@media (max-width:560px){header{flex-wrap:wrap;gap:12px}.src{display:none}}
 footer{margin:70px 0 40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:.82rem}
 footer a{color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -139,13 +156,20 @@ footer a{color:var(--muted)}
 <div class="wrap">
   <header>
     <a class="back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Baverone</a>
+    <nav class="tabs" aria-label="Secções"><a href="#Volcanic" id="tab-clas">Clãs</a><a href="#conteudo/hunts" id="tab-cont">Por conteúdo</a></nav>
     <span class="src" id="src"></span>
   </header>
 
-  <section class="hero">
+  <section class="hero" id="hero-clas">
     <h1>Os clãs do PokeXGames</h1>
     <p>Escolhe um clã para ver o team que a wikipxg recomenda para mid e late game, e todos os pokemons do clã por tier, com a função de cada um em PvE e em PvP.</p>
     <nav class="picker" id="picker" aria-label="Clãs"></nav>
+  </section>
+
+  <section class="hero" id="hero-cont" hidden>
+    <h1>O melhor pokemon para cada conteúdo</h1>
+    <p>O que é top numa hunt é mau num boss, e o que domina o PvP nem entra nas hunts. Escolhe o conteúdo para ver as funções que pede e os pokemons que a wiki e os criadores de 2025–2026 recomendam.</p>
+    <nav class="picker" id="picker-cont" aria-label="Conteúdos"></nav>
   </section>
 
   <main id="cla"></main>
@@ -306,8 +330,63 @@ function render(){
   s.oninput = () => { estado.q = s.value; document.getElementById("linhas").innerHTML = linhas(c); };
 }
 
+const COR_CONT = "#a77bff";
+
+function pickerCont(){
+  const itens = D.conteudos.map(x => [x.id, x.nome, x.nivel]).concat([["versateis","Servem em tudo","vários conteúdos"]]);
+  document.getElementById("picker-cont").innerHTML = itens.map(([id, nome, nivel]) =>
+    `<a class="clan cont" href="#conteudo/${id}" data-id="${id}"><b>${esc(nome)}</b><small>${esc(nivel)}</small></a>`).join("");
+}
+
+function info(n){
+  const p = D.pokes[n] || D.pokes[n.replace(" (TM)","")];
+  if (!p) return {tier: n.endsWith("(TM)") ? "TM" : "", cla: "", f: []};
+  const [cla, i] = Object.entries(p.clas)[0];
+  return {tier: n.endsWith("(TM)") ? "TM" : i.tier, cla: Object.keys(p.clas).join(", "), f: i.pve};
+}
+
+function slotCont(n){
+  const own = tenho(n), x = info(n);
+  return `<a class="slot${own?" own":""}" href="${link(n)}" target="_blank" rel="noopener">
+    ${own?'<span class="tag-own">Tenho</span>':""}
+    <span class="sp">${img(D.sprite_de[n], n, "px", false)}</span>
+    <span class="n">${esc(n)}</span>
+    ${x.cla?`<span class="cl">${esc(x.cla)}</span>`:""}
+    <span class="meta">${x.f.map(ico).join("")}${x.tier?`<span class="tier${/^1/.test(x.tier)?" t1":""}">${esc(x.tier)}</span>`:""}</span></a>`;
+}
+
+function renderCont(id){
+  document.documentElement.style.setProperty("--c", COR_CONT);
+  document.querySelectorAll("#picker-cont .clan").forEach(b => b.setAttribute("aria-pressed", b.dataset.id === id));
+  const box = document.getElementById("cla");
+  if (id === "versateis"){
+    const v = D.versateis, meus = v.pokes.filter(tenho).length;
+    box.innerHTML = `<section class="cont-head"><h2>Servem em tudo</h2>
+      <div class="facts"><div><b>${v.pokes.length}</b><span>pokemons</span></div><div><b>${meus}/${v.pokes.length}</b><span>que já tenho</span></div></div>
+      <p class="resumo">${esc(v.resumo)}</p></section>
+      <div class="group"><div class="party">${v.pokes.map(slotCont).join("")}</div></div>`;
+    return;
+  }
+  const c = D.conteudos.find(x => x.id === id) || D.conteudos[0];
+  box.innerHTML = `<section class="cont-head"><h2>${esc(c.nome)}</h2>
+      <div class="facts"><div><b>${esc(c.nivel)}</b><span>nível</span></div><div><b>${esc(c.formato)}</b><span>formato</span></div></div>
+      <p class="resumo">${esc(c.resumo)}</p></section>
+    ${c.grupos.map(g => `<h3 class="sec">${esc(g.titulo)}</h3>${g.nota?`<p class="nota">${esc(g.nota)}</p>`:""}
+      <div class="party">${g.pokes.map(slotCont).join("")}</div>`).join("")}
+    ${c.evitar?`<p class="evitar"><b>A evitar.</b> ${esc(c.evitar)}</p>`:""}
+    <p class="fontes">Fontes: ${c.fontes.map(f => `<a href="${f.u}" target="_blank" rel="noopener">${esc(f.t)}</a>`).join(" · ")}</p>`;
+}
+
 function rota(){
   const h = decodeURIComponent(location.hash.slice(1));
+  const emCont = h.startsWith("conteudo");
+  document.getElementById("hero-clas").hidden = emCont;
+  document.getElementById("hero-cont").hidden = !emCont;
+  document.getElementById("tab-clas").toggleAttribute("aria-current", !emCont);
+  document.getElementById("tab-cont").toggleAttribute("aria-current", emCont);
+  if (!emCont) document.getElementById("tab-clas").setAttribute("href", "#" + (estado.cla || "Volcanic"));
+  if (emCont){ document.getElementById("tab-cont").setAttribute("aria-current","page"); renderCont(h.split("/")[1] || "hunts"); return; }
+  document.getElementById("tab-clas").setAttribute("aria-current","page");
   const c = D.clas.find(x => x.nome.toLowerCase() === h.toLowerCase()) || D.clas[0];
   if (estado.cla !== c.nome){ estado = {...estado, cla:c.nome, role:null, q:""}; }
   render();
@@ -317,7 +396,7 @@ fetch("dados.json").then(r => r.json()).then(d => {
   D = d;
   document.getElementById("lido").textContent = d.lido_em.split("-").reverse().join("/");
   document.getElementById("src").textContent = `${Object.keys(d.pokes).length} pokemons em 10 clãs`;
-  picker(); rota();
+  picker(); pickerCont(); rota();
   addEventListener("hashchange", rota);
 }).catch(() => {
   document.getElementById("cla").innerHTML = '<div class="empty">Não consegui ler os dados dos clãs. Recarrega a página.</div>';
