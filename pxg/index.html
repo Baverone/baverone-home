@@ -197,7 +197,7 @@ footer a{color:var(--muted)}
 <div class="wrap">
   <header>
     <a class="back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Baverone</a>
-    <nav class="tabs" aria-label="Secções"><a href="#Volcanic" id="tab-clas">Clãs</a><a href="#conteudo/hunts" id="tab-cont">Por conteúdo</a><a href="#pokelog" id="tab-pl">Pokélog</a></nav>
+    <nav class="tabs" aria-label="Secções"><a href="#Volcanic" id="tab-clas">Clãs</a><a href="#conteudo/hunts" id="tab-cont">Por conteúdo</a><a href="#inventario" id="tab-inv">Inventário</a><a href="#pokelog" id="tab-pl">Pokélog</a></nav>
     <span class="src" id="src"></span>
   </header>
 
@@ -212,6 +212,12 @@ footer a{color:var(--muted)}
     <h1>O melhor pokemon para cada conteúdo</h1>
     <p>O que é top numa hunt é mau num boss, e o que domina o PvP nem entra nas hunts. Escolhe o conteúdo para ver as funções que pede e os pokemons que a wiki e os criadores de 2025–2026 recomendam.</p>
     <nav class="picker" id="picker-cont" aria-label="Conteúdos"></nav>
+  </section>
+
+  <section class="hero" id="hero-inv" hidden>
+    <h1>O meu inventário</h1>
+    <p>Os pokemons que contam, de todos os clãs: Tier 1A e 1B todos juntos, Tier 1C e T1H por clã, e os TM pela função. Toca num pokemon para o marcar como teu.</p>
+    <div class="inv" id="inv-bar2"></div>
   </section>
 
   <section class="hero" id="hero-pl" hidden>
@@ -240,7 +246,7 @@ const TIERS = {
   "TM":"Technical Machine",
   "TR":"Technical Records"
 };
-const ORDEM = ["1A","1B","1C","1H","2","3","TM","TR"]; // ordem do André (16/11)
+const ORDEM = ["1A","1B","1C","1H","TM","TR"]; // 16/11: o André não quer Tier 2 e 3 nas listas
 const POR_TIPO = t => !["1A","1B","1C"].includes(t); // do 1H para baixo: separados por tipo
 let D, estado = {cla:null, role:null, modo:"pve", meus:false, q:""};
 
@@ -258,7 +264,9 @@ const tenho = nome => INV.has(nome) || !!D.tenho[nome];
 const invTexto = () => `Inventário PXG (${INV.size})\n` + [...INV].sort().join("\n");
 
 function invBar(){
-  document.getElementById("inv-bar").innerHTML = `
+  const visivel = location.hash === "#inventario" ? "inv-bar2" : "inv-bar";
+  document.getElementById(visivel === "inv-bar" ? "inv-bar2" : "inv-bar").innerHTML = "";
+  document.getElementById(visivel).innerHTML = `
     <span>O meu inventário: <b>${INV.size}</b> pokemons. Toca num pokemon para o marcar.</span>
     <span class="acoes"><button class="chip" id="inv-copiar">Copiar inventário</button><button class="chip" id="inv-abrir">Importar</button></span>
     <div class="inv-imp" id="inv-imp"><textarea id="inv-txt" placeholder="Cola aqui um inventário copiado (um pokemon por linha)"></textarea>
@@ -396,7 +404,7 @@ function render(){
       <div class="party">${c.team.filter(t => t.grupo === g).map(slot).join("")}</div></div>`).join("")}
 
     <h3 class="sec">Todos os pokemons do clã</h3>
-    <p class="lead">Por tier: 1A, 1B e 1C primeiro, depois 1H, 2, 3, TM e TR, estes separados por tipo. Tier compara pokemons com a mesma função: diz a raridade e o desempenho.</p>
+    <p class="lead">Por tier: 1A, 1B e 1C primeiro, depois 1H, TM e TR, estes separados por tipo. Tier compara pokemons com a mesma função: diz a raridade e o desempenho.</p>
     ${filtros(c)}
     <div id="linhas">${linhas(c)}</div>
 
@@ -413,6 +421,60 @@ function render(){
   box.querySelector("[data-meus]").onclick = () => { estado.meus = !estado.meus; render(); };
   const s = box.querySelector(".search");
   s.oninput = () => { estado.q = s.value; document.getElementById("linhas").innerHTML = linhas(c); };
+}
+
+// ---------- separador Inventário: T1A, T1B, T1C por clã, T1H por clã, TM por função, TR
+const COR_INV = "#f5c451";
+const TM_GRUPOS = [["Tanque","TM Tank"],["Tanque Ofensivo","TM Off-Tank"],["Causador de Dano Explosivo","TM Burst"],["Causador de Dano Contínuo","TM OTDD"]];
+
+function cartaInv(n, mostrarCla = true){
+  const p = D.pokes[n], own = tenho(n);
+  const clas = Object.keys(p.clas), i = p.clas[clas[0]];
+  const f = (i.pve || []).filter(x => D.icones[x]);
+  return `<button class="slot${own ? " own" : ""}" data-inv="${esc(n)}" aria-pressed="${!!own}" title="${own ? "Desmarcar" : "Marcar"} ${esc(n)} como meu">
+    ${own ? '<span class="tag-own">Tenho</span>' : ""}
+    <span class="sp">${img(p.sprite, n)}</span>
+    <span class="n">${esc(n)}</span>
+    ${mostrarCla ? `<span class="cl">${esc(clas.join(", "))}</span>` : ""}
+    <span class="meta">${f.map(ico).join("")}</span></button>`;
+}
+
+function grupoInv(titulo, nomes, nota, mostrarCla = true){
+  const lst = estado.invFalta ? nomes.filter(n => !tenho(n)) : nomes;
+  const feitos = nomes.filter(tenho).length;
+  return `<div class="group inv-g"><h4>${titulo}<small>${feitos}/${nomes.length}</small></h4>
+    ${nota ? `<p class="nota">${nota}</p>` : ""}
+    ${lst.length ? `<div class="party">${lst.map(n => cartaInv(n, mostrarCla)).join("")}</div>` : `<p class="nota">Tens todos.</p>`}</div>`;
+}
+
+function renderInv(){
+  document.documentElement.style.setProperty("--c", COR_INV);
+  const todos = Object.keys(D.pokes);
+  const doTier = t => todos.filter(n => Object.values(D.pokes[n].clas).some(i => i.tier === t)).sort();
+  const porCla = t => D.clas.map(c => [c, c.pokes.filter(n => D.pokes[n].clas[c.nome].tier === t).sort()]).filter(([, l]) => l.length);
+  const tm = doTier("TM");
+  const funcaoTm = n => Object.values(D.pokes[n].clas).find(i => i.tier === "TM").pve[0];
+  const total = [...doTier("1A"), ...doTier("1B"), ...doTier("1C"), ...doTier("1H"), ...tm, ...doTier("TR")];
+  const unicos = [...new Set(total)];
+  document.getElementById("cla").innerHTML = `
+    <section class="pl-total"><b>${unicos.filter(tenho).length}</b><span>de ${unicos.length} pokemons do 1A ao 1C, T1H, TM e TR</span></section>
+    <div class="filters"><button class="chip" data-falta aria-pressed="${!!estado.invFalta}">Só os que me faltam</button></div>
+
+    <h3 class="sec">Tier 1A</h3>
+    ${grupoInv("Todos os clãs", doTier("1A"), "Os mais raros, quase todos Shiny ou Mega; o topo do PvP.")}
+    <h3 class="sec">Tier 1B</h3>
+    ${grupoInv("Todos os clãs", doTier("1B"), "Shiny ou Mega, muito fortes em PvP.")}
+    <h3 class="sec">Tier 1C</h3>
+    ${porCla("1C").map(([c, l]) => grupoInv(c.nome, l, "", false)).join("")}
+    <h3 class="sec">T1H, para hunts</h3>
+    <p class="lead">Do 400 ao 600 o T1H do clã é o que mais dá XP e loot (Cosmic Quest ou Desert Quest).</p>
+    ${porCla("1H").map(([c, l]) => grupoInv(c.nome, l, "", false)).join("")}
+    <h3 class="sec">TM, por função</h3>
+    <p class="lead">A wiki dá a cada TM uma função PvE. O TM Tank é o centro do Ultra Lab; o TM Off-Tank e o TM Burst entram nas rotações de hunt a 600.</p>
+    ${TM_GRUPOS.map(([f, t]) => grupoInv(t, tm.filter(n => funcaoTm(n) === f).sort())).join("")}
+    <h3 class="sec">TR</h3>
+    ${grupoInv("Todos", doTier("TR"), "Bursts com força de T2 que se compram na loja de Goldenrod; pedem boost +70.")}`;
+  document.querySelector("[data-falta]").onclick = () => { estado.invFalta = !estado.invFalta; const y = scrollY; renderInv(); scrollTo(0, y); };
 }
 
 const COR_CONT = "#a77bff";
@@ -544,11 +606,13 @@ function renderCont(id){
 function rota(){
   invBar();
   const h = decodeURIComponent(location.hash.slice(1));
-  const emCont = h.startsWith("conteudo"), emPl = h === "pokelog";
-  document.getElementById("hero-clas").hidden = emCont || emPl;
+  const emCont = h.startsWith("conteudo"), emPl = h === "pokelog", emInv = h === "inventario";
+  document.getElementById("hero-clas").hidden = emCont || emPl || emInv;
+  document.getElementById("hero-inv").hidden = !emInv;
   document.getElementById("hero-cont").hidden = !emCont;
   document.getElementById("hero-pl").hidden = !emPl;
-  for (const t of ["tab-clas","tab-cont","tab-pl"]) document.getElementById(t).removeAttribute("aria-current");
+  for (const t of ["tab-clas","tab-cont","tab-pl","tab-inv"]) document.getElementById(t).removeAttribute("aria-current");
+  if (emInv){ document.getElementById("tab-inv").setAttribute("aria-current","page"); renderInv(); return; }
   if (emPl){ document.getElementById("tab-pl").setAttribute("aria-current","page"); renderPl(); return; }
   if (!emCont) document.getElementById("tab-clas").setAttribute("href", "#" + (estado.cla || "Volcanic"));
   if (emCont){ document.getElementById("tab-cont").setAttribute("aria-current","page"); renderCont(h.split("/")[1] || "hunts"); return; }
