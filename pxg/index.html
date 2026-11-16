@@ -425,7 +425,10 @@ function render(){
 
 // ---------- separador Inventário: T1A, T1B, T1C por clã, T1H por clã, TM por função, TR
 const COR_INV = "#f5c451";
-const TM_GRUPOS = [["Tanque","TM Tank"],["Tanque Ofensivo","TM Off-Tank"],["Causador de Dano Explosivo","TM Burst"],["Causador de Dano Contínuo","TM OTDD"]];
+// TM pela função PvE da wiki; o Burst divide-se em «com CC» (golpe em área com Stun/Silence/Locked/Stuck) e Finalizador (sem CC)
+const TM_GRUPOS = [["Tanque","TM Tank",""],["Tanque Ofensivo","TM Off-Tank",""],["Causador de Dano Explosivo","TM Burst","cc"],["Causador de Dano Explosivo","TM Finalizador","fin"],["Causador de Dano Contínuo","TM OTDD",""]];
+const etiquetaBurst = n => { const b = D.burst[n]; if (!b) return "";
+  return b.tipo === "cc" ? `<span class="tier" title="Controlo de grupo: ${esc(b.golpes.join(", "))}">Burst com CC</span>` : `<span class="tier t1" title="Burst sem stun nem silence em área">Finalizador</span>`; };
 
 function cartaInv(n, mostrarCla = true){
   const p = D.pokes[n], own = tenho(n);
@@ -436,7 +439,7 @@ function cartaInv(n, mostrarCla = true){
     <span class="sp">${img(p.sprite, n)}</span>
     <span class="n">${esc(n)}</span>
     ${mostrarCla ? `<span class="cl">${esc(clas.join(", "))}</span>` : ""}
-    <span class="meta">${f.map(ico).join("")}</span></button>`;
+    <span class="meta">${f.map(ico).join("")}${etiquetaBurst(n)}</span></button>`;
 }
 
 function grupoInv(titulo, nomes, nota, mostrarCla = true){
@@ -470,8 +473,9 @@ function renderInv(){
     <p class="lead">Do 400 ao 600 o T1H do clã é o que mais dá XP e loot (Cosmic Quest ou Desert Quest).</p>
     ${porCla("1H").map(([c, l]) => grupoInv(c.nome, l, "", false)).join("")}
     <h3 class="sec">TM, por função</h3>
-    <p class="lead">A wiki dá a cada TM uma função PvE. O TM Tank é o centro do Ultra Lab; o TM Off-Tank e o TM Burst entram nas rotações de hunt a 600.</p>
-    ${TM_GRUPOS.map(([f, t]) => grupoInv(t, tm.filter(n => funcaoTm(n) === f).sort())).join("")}
+    <p class="lead">A wiki dá a cada TM uma função PvE. O Burst separa-se pelos golpes: com stun ou silence em área é Burst com CC; só com dano é Finalizador. O TM Tank é o centro do Ultra Lab; o TM Off-Tank e o TM Burst entram nas rotações de hunt a 600.</p>
+    ${TM_GRUPOS.map(([f, t, b]) => grupoInv(t, tm.filter(n => funcaoTm(n) === f && (!b || (D.burst[n] || {tipo: "cc"}).tipo === b)).sort(),
+        b === "cc" ? "Burst com controlo de grupo: um golpe em área com Stun, Silence ou que prende." : b === "fin" ? "Burst sem controlo de grupo: só dano, para rematar o lure." : "")).join("")}
     <h3 class="sec">TR</h3>
     ${grupoInv("Todos", doTier("TR"), "Bursts com força de T2 que se compram na loja de Goldenrod; pedem boost +70.")}`;
   document.querySelector("[data-falta]").onclick = () => { estado.invFalta = !estado.invFalta; const y = scrollY; renderInv(); scrollTo(0, y); };
