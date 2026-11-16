@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PokeXGames · Clãs</title>
+<meta name="description" content="Os 10 clãs do PokeXGames: o team de cada clã, a função e o tier de cada pokemon, a partir da wikipxg.">
+<meta name="theme-color" content="#07080d">
+<link rel="icon" href="img/Fire.png">
+<link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/space-grotesk-700-latin.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Inter";font-style:normal;font-weight:400 600;font-display:swap;src:url(/fonts/inter-latin.woff2) format("woff2")}
+@font-face{font-family:"Space Grotesk";font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/space-grotesk-700-latin.woff2) format("woff2")}
+:root{
+  --bg:#07080d; --panel:#0e1018; --panel2:#151925; --line:rgba(255,255,255,.08);
+  --ink:#eef0f6; --muted:#9aa1b5; --dim:#6f768c;
+  --c:#EF5A4A; /* cor do clã escolhido */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,"Segoe UI",Roboto,sans-serif;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+img.px{image-rendering:pixelated}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--c);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+
+/* brilho do clã atrás do topo */
+.glow{position:fixed;inset:0 0 auto;height:620px;z-index:-1;pointer-events:none;
+  background:radial-gradient(60% 70% at 15% 0%,color-mix(in srgb,var(--c) 26%,transparent),transparent 70%);transition:background .6s}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:24px 0}
+.back{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--muted);font-size:.9rem}
+.back:hover{color:var(--ink)}
+.back svg{width:16px;height:16px}
+.src{font-size:.8rem;color:var(--dim)}
+.src a{color:var(--muted)}
+
+.hero{padding:30px 0 26px}
+.hero h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(2.4rem,6.4vw,4.4rem);line-height:1;letter-spacing:-.035em;max-width:14ch}
+.hero p{color:var(--muted);max-width:60ch;margin-top:16px;font-size:1.05rem}
+
+/* escolha do clã */
+.picker{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:30px 0 8px}
+@media (max-width:820px){.picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.clan{--k:#888;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--panel);
+  border:1px solid var(--line);text-align:left;transition:border-color .2s,background .2s}
+.clan:hover{border-color:color-mix(in srgb,var(--k) 50%,transparent)}
+.clan[aria-pressed=true]{background:color-mix(in srgb,var(--k) 16%,var(--panel));border-color:var(--k)}
+.clan .els{display:flex;flex-direction:column;gap:2px}
+.clan .els img{width:20px;height:20px}
+.clan b{font-family:"Space Grotesk",sans-serif;font-size:1.02rem;letter-spacing:-.01em;display:block}
+.clan small{color:var(--dim);font-size:.76rem}
+
+/* cabeçalho do clã */
+.cl-head{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:28px;align-items:center;margin:40px 0 10px}
+@media (max-width:720px){.cl-head{grid-template-columns:1fr}}
+.banner{width:100%;max-width:400px;border-radius:16px;border:1px solid var(--line);display:block}
+.cl-head h2{font-family:"Space Grotesk",sans-serif;font-size:clamp(2rem,5vw,3.2rem);letter-spacing:-.03em;line-height:1;color:var(--c)}
+.facts{display:flex;flex-wrap:wrap;gap:22px;margin-top:16px}
+.facts div{display:flex;flex-direction:column}
+.facts b{font-size:1.5rem;font-family:"Space Grotesk",sans-serif}
+.facts span{color:var(--muted);font-size:.85rem}
+.cl-head a.wiki{display:inline-block;margin-top:16px;color:var(--muted);font-size:.88rem}
+
+h3.sec{font-family:"Space Grotesk",sans-serif;font-size:1.45rem;letter-spacing:-.02em;margin:46px 0 6px}
+p.lead{color:var(--muted);max-width:68ch;font-size:.95rem}
+
+/* team: slots grandes com o sprite em pixel */
+.group{margin-top:22px}
+.group h4{display:flex;align-items:center;gap:8px;font-size:.95rem;font-weight:600;color:var(--muted);margin-bottom:10px}
+.group h4 img{width:20px;height:20px}
+.party{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+.slot{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px 12px;border-radius:16px;
+  background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);text-decoration:none;text-align:center}
+.slot:hover{border-color:color-mix(in srgb,var(--c) 55%,transparent)}
+.slot .sp{height:72px;display:grid;place-items:end center}
+.slot .sp img{height:69px;width:auto}
+.slot .n{font-size:.86rem;font-weight:600;line-height:1.25}
+.slot .meta{display:flex;align-items:center;gap:6px}
+.slot .meta img{width:20px;height:20px}
+.slot.own{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+.tag-own{position:absolute;top:8px;right:8px;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--c);color:#07080d}
+.tier{font-size:.72rem;font-weight:600;padding:2px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tier.t1{color:#07080d;background:var(--c);border-color:transparent}
+
+/* filtros */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:18px 0 6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:.85rem;color:var(--muted)}
+.chip img{width:18px;height:18px}
+.chip[aria-pressed=true]{color:var(--ink);border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,var(--panel))}
+.sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+input.search{flex:1 1 200px;min-width:0;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.9rem}
+input.search::placeholder{color:var(--dim)}
+
+/* tiers: linhas */
+.tierblock{margin-top:26px}
+.tierblock h4{display:flex;align-items:baseline;gap:12px;font-family:"Space Grotesk",sans-serif;font-size:1.15rem;margin-bottom:8px}
+.tierblock h4 small{font-family:Inter,sans-serif;font-weight:400;color:var(--dim);font-size:.82rem}
+.rows{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{display:grid;grid-template-columns:56px minmax(0,1.6fr) 70px 1fr 1fr 1fr 64px;gap:12px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);background:var(--panel)}
+.row:first-child{border-top:0}
+.row.hd{background:transparent;color:var(--dim);font-size:.76rem;padding:8px 14px}
+.row .sp img{height:46px;width:auto;display:block;margin:auto}
+.row .nm a{font-weight:600;text-decoration:none}
+.row .nm a:hover{text-decoration:underline;text-decoration-color:var(--c)}
+.row .nm small{display:block;color:var(--dim);font-size:.75rem}
+.ics{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.ics img{width:22px;height:22px}
+.row.own{background:color-mix(in srgb,var(--c) 10%,var(--panel))}
+.own-dot{font-size:.75rem;font-weight:600;color:var(--c)}
+@media (max-width:760px){
+  .row{grid-template-columns:52px 1fr auto;grid-template-areas:"sp nm own" "sp el el" "sp pve pve" "sp pvp pvp"}
+  .row.hd{display:none}
+  .row .sp{grid-area:sp}.row .nm{grid-area:nm}.row .c-el{grid-area:el}.row .c-pve{grid-area:pve}.row .c-pvp{grid-area:pvp}.row .c-held{display:none}.row .c-own{grid-area:own}
+  .row .c-pve::before{content:"PvE ";color:var(--dim);font-size:.75rem;margin-right:4px}
+  .row .c-pvp::before{content:"PvP ";color:var(--dim);font-size:.75rem;margin-right:4px}
+}
+.empty{padding:22px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);margin-top:18px}
+
+.excl{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.excl a{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:12px;background:var(--panel);border:1px solid var(--line);text-decoration:none;font-size:.88rem}
+.excl img{height:34px;width:auto}
+
+dl.legend{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin-top:12px;font-size:.88rem;color:var(--muted);max-width:720px}
+dl.legend dt{font-weight:600;color:var(--ink)}
+
+footer{margin:70px 0 40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:.82rem}
+footer a{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="glow" aria-hidden="true"></div>
+<div class="wrap">
+  <header>
+    <a class="back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Baverone</a>
+    <span class="src" id="src"></span>
+  </header>
+
+  <section class="hero">
+    <h1>Os clãs do PokeXGames</h1>
+    <p>Escolhe um clã para ver o team que a wikipxg recomenda para mid e late game, e todos os pokemons do clã por tier, com a função de cada um em PvE e em PvP.</p>
+    <nav class="picker" id="picker" aria-label="Clãs"></nav>
+  </section>
+
+  <main id="cla"></main>
+
+  <footer>
+    Dados lidos da <a href="https://wiki.pokexgames.com/index.php/Cl%C3%A3s">wikipxg</a> em <span id="lido"></span>. Sprites e ícones são do PokeXGames.
+  </footer>
+</div>
+
+<script>
+const WIKI = "https://wiki.pokexgames.com/index.php/";
+const ROLES = ["Tanque","Tanque Ofensivo","Causador de Dano Explosivo","Causador de Dano Contínuo","Suporte","Suporte Contínuo","Velocista","Disruptor"];
+const CURTO = {"Causador de Dano Explosivo":"Dano explosivo","Causador de Dano Contínuo":"Dano contínuo","Suporte Contínuo":"Suporte contínuo","Tanque Ofensivo":"Tanque ofensivo"};
+const TIERS = {
+  "1A":"os mais raros, quase todos Shiny ou Mega; sobretudo PvP",
+  "1B":"Shiny ou Mega, muito fortes em PvP",
+  "1C":"fortes em PvE e PvP",
+  "1H":"só PvE, os melhores para hunt",
+  "TM":"Technical Machine",
+  "TR":"Technical Records",
+  "2":"nível 100",
+  "3":"nível 80"
+};
+let D, estado = {cla:null, role:null, modo:"pve", meus:false, q:""};
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const img = (f, alt, cls="px", lazy=true) => f ? `<img class="${cls}" src="img/${encodeURIComponent(f)}" alt="${esc(alt)}" title="${esc(alt)}"${lazy?' loading="lazy"':""}>` : "";
+const ico = nome => img(D.icones[nome], nome, "px", false);
+const lista = a => a.length > 1 ? a.slice(0,-1).join(", ") + " e " + a.at(-1) : a.join("");
+const link = nome => WIKI + encodeURIComponent(nome.replace(/ /g,"_"));
+const tenho = nome => D.tenho[nome.replace(/ \((TM|TR)\)$/,"")] || D.tenho[nome];
+
+function picker(){
+  document.getElementById("picker").innerHTML = D.clas.map(c => {
+    const els = [...new Set(c.team.map(t => t.grupo).filter(Boolean))];
+    return `<button class="clan" style="--k:${c.cor}" data-c="${c.nome}" aria-pressed="false">
+      <span class="els">${els.map(ico).join("")}</span>
+      <span><b>${c.nome}</b><small>${lista(els)}</small></span></button>`;
+  }).join("");
+  document.querySelectorAll(".clan").forEach(b => b.onclick = () => { location.hash = b.dataset.c; });
+}
+
+function slot(t){
+  const own = tenho(t.nome);
+  const t1 = /^1/.test(t.tier);
+  return `<a class="slot${own?" own":""}" href="${link(t.nome)}" target="_blank" rel="noopener">
+    ${own?'<span class="tag-own">Tenho</span>':""}
+    <span class="sp">${img(t.sprite, t.nome, "px", false)}</span>
+    <span class="n">${esc(t.nome)}</span>
+    <span class="meta">${t.funcao.map(ico).join("")}<span class="tier${t1?" t1":""}">${esc(t.tier)}</span></span></a>`;
+}
+
+function linhas(c){
+  const q = estado.q.trim().toLowerCase();
+  const porTier = {};
+  for (const nome of c.pokes){
+    const p = D.pokes[nome], i = p.clas[c.nome];
+    const f = estado.modo === "pve" ? i.pve : i.pvp;
+    if (estado.role && !f.includes(estado.role)) continue;
+    if (estado.meus && !tenho(nome)) continue;
+    if (q && !nome.toLowerCase().includes(q)) continue;
+    (porTier[i.tier] ??= []).push([p, i]);
+  }
+  const ordem = Object.keys(TIERS).filter(t => porTier[t]);
+  if (!ordem.length) return `<div class="empty">${estado.meus && !Object.keys(D.tenho).length
+    ? "O inventário ainda está vazio. Quando preencher o inventario.xlsx, os pokemons que tenho aparecem aqui."
+    : "Nenhum pokemon deste clã com estes filtros. Tira um filtro para ver mais."}</div>`;
+  return ordem.map(t => `<div class="tierblock"><h4>Tier ${t}<small>${TIERS[t]} · ${porTier[t].length}</small></h4>
+    <div class="rows"><div class="row hd"><span></span><span>Pokemon</span><span>Elementos</span><span>Função PvE</span><span>Função PvP</span><span>Held</span><span></span></div>
+    ${porTier[t].map(([p,i]) => {
+      const own = tenho(p.nome);
+      return `<div class="row${own?" own":""}">
+        <span class="sp">${img(p.sprite, p.nome)}</span>
+        <span class="nm"><a href="${link(p.nome)}" target="_blank" rel="noopener">${esc(p.nome)}</a><small>${esc(p.dex)}</small></span>
+        <span class="ics c-el">${p.elementos.map(ico).join("")}</span>
+        <span class="ics c-pve">${i.pve.map(ico).join("")}</span>
+        <span class="ics c-pvp">${i.pvp.map(ico).join("")}</span>
+        <span class="ics c-held">${i.held.map(ico).join("")}</span>
+        <span class="c-own">${own?`<span class="own-dot">Tenho${own.tenho>1?" ×"+own.tenho:""}${own["nível"]?" · nv "+own["nível"]:""}</span>`:""}</span></div>`;
+    }).join("")}</div></div>`).join("");
+}
+
+function filtros(c){
+  const k = estado.modo;
+  const roles = ROLES.filter(r => c.pokes.some(n => D.pokes[n].clas[c.nome][k].includes(r)));
+  return `<div class="filters" role="toolbar" aria-label="Filtros">
+    <button class="chip" data-modo="pve" aria-pressed="${estado.modo==="pve"}">PvE</button>
+    <button class="chip" data-modo="pvp" aria-pressed="${estado.modo==="pvp"}">PvP</button>
+    <span class="sep"></span>
+    ${roles.map(r => `<button class="chip" data-role="${r}" aria-pressed="${estado.role===r}">${ico(r)}${CURTO[r]||r}</button>`).join("")}
+    <span class="sep"></span>
+    <button class="chip" data-meus aria-pressed="${estado.meus}">Só os que tenho</button>
+    <input class="search" type="search" placeholder="Procurar pokemon" value="${esc(estado.q)}" aria-label="Procurar pokemon">
+  </div>`;
+}
+
+function render(){
+  const c = D.clas.find(x => x.nome === estado.cla);
+  if (estado.role && !c.pokes.some(n => D.pokes[n].clas[c.nome][estado.modo].includes(estado.role))) estado.role = null;
+  document.documentElement.style.setProperty("--c", c.cor);
+  document.querySelectorAll(".clan").forEach(b => b.setAttribute("aria-pressed", b.dataset.c === c.nome));
+  const grupos = [...new Set(c.team.map(t => t.grupo))];
+  const teamTenho = c.team.filter(t => tenho(t.nome)).length;
+  const meus = c.pokes.filter(tenho).length;
+  document.getElementById("cla").innerHTML = `
+    <section class="cl-head">
+      ${img(c.banner, "Banner do clã " + c.nome, "banner")}
+      <div>
+        <h2>${c.nome}</h2>
+        <div class="facts">
+          <div><b>${c.pokes.length}</b><span>pokemons nos tiers</span></div>
+          <div><b>${c.team.length}</b><span>no team mid-late</span></div>
+          <div><b>${teamTenho}/${c.team.length}</b><span>do team que já tenho</span></div>
+          <div><b>${meus}</b><span>do clã no inventário</span></div>
+        </div>
+        <a class="wiki" href="${c.url}" target="_blank" rel="noopener">Página do clã na wikipxg</a>
+      </div>
+    </section>
+
+    <h3 class="sec">Team mid-late game</h3>
+    <p class="lead">A rotação que a wiki recomenda depois do early game, por elemento do clã. O ícone diz a função do pokemon no team; a etiqueta diz o tier.</p>
+    ${grupos.map(g => `<div class="group"><h4>${ico(g)}${esc(g||"")}</h4>
+      <div class="party">${c.team.filter(t => t.grupo === g).map(slot).join("")}</div></div>`).join("")}
+
+    <h3 class="sec">Todos os pokemons do clã</h3>
+    <p class="lead">Por tier, do mais raro ao mais comum. Tier compara pokemons com a mesma função: diz a raridade e o desempenho.</p>
+    ${filtros(c)}
+    <div id="linhas">${linhas(c)}</div>
+
+    ${c.exclusivos.length ? `<h3 class="sec">Só para ${c.nome} no PvP</h3>
+      <p class="lead">Pokemons que, em PvP, só um membro deste clã pode usar.</p>
+      <div class="excl">${c.exclusivos.map(e => `<a href="${link(e.nome)}" target="_blank" rel="noopener">${img(e.sprite, e.nome)}${esc(e.nome)}</a>`).join("")}</div>` : ""}
+
+    <h3 class="sec">O que quer dizer cada tier</h3>
+    <dl class="legend">${Object.entries(TIERS).map(([t,d]) => `<dt>${t}</dt><dd>${d}</dd>`).join("")}</dl>`;
+
+  const box = document.getElementById("cla");
+  box.querySelectorAll("[data-modo]").forEach(b => b.onclick = () => { estado.modo = b.dataset.modo; render(); });
+  box.querySelectorAll("[data-role]").forEach(b => b.onclick = () => { estado.role = estado.role === b.dataset.role ? null : b.dataset.role; render(); });
+  box.querySelector("[data-meus]").onclick = () => { estado.meus = !estado.meus; render(); };
+  const s = box.querySelector(".search");
+  s.oninput = () => { estado.q = s.value; document.getElementById("linhas").innerHTML = linhas(c); };
+}
+
+function rota(){
+  const h = decodeURIComponent(location.hash.slice(1));
+  const c = D.clas.find(x => x.nome.toLowerCase() === h.toLowerCase()) || D.clas[0];
+  if (estado.cla !== c.nome){ estado = {...estado, cla:c.nome, role:null, q:""}; }
+  render();
+}
+
+fetch("dados.json").then(r => r.json()).then(d => {
+  D = d;
+  document.getElementById("lido").textContent = d.lido_em.split("-").reverse().join("/");
+  document.getElementById("src").textContent = `${Object.keys(d.pokes).length} pokemons em 10 clãs`;
+  picker(); rota();
+  addEventListener("hashchange", rota);
+}).catch(() => {
+  document.getElementById("cla").innerHTML = '<div class="empty">Não consegui ler os dados dos clãs. Recarrega a página.</div>';
+});
+</script>
+</body>
+</html>
