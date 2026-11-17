@@ -186,6 +186,8 @@ button.slot:not(.own) .sp img{opacity:.8}
 .inv-imp.aberto{display:flex}
 .inv-imp textarea{width:100%;min-height:90px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:inherit;font-size:.85rem}
 .own-btn{font-size:.76rem;padding:4px 9px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);white-space:nowrap}
+.slot .tirar{margin-top:4px;font-size:.72rem;padding:2px 8px}
+.slot .tirar:hover{border-color:var(--c);color:var(--ink)}
 .own-btn[aria-pressed=true]{background:var(--c);border-color:var(--c);color:#07080d;font-weight:600}
 footer{margin:70px 0 40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:.82rem}
 footer a{color:var(--muted)}
@@ -216,7 +218,7 @@ footer a{color:var(--muted)}
 
   <section class="hero" id="hero-inv" hidden>
     <h1>O meu inventário</h1>
-    <p>Os pokemons que contam, de todos os clãs: Tier 1A e 1B todos juntos, Tier 1C e T1H por clã, e os TM pela função. Toca num pokemon para o marcar como teu.</p>
+    <p>Só os pokemons que tens, por categoria: Tier 1A e 1B, Tier 1C e T1H por clã, os TM pela função, os TR e o resto.</p>
     <div class="inv" id="inv-bar2"></div>
   </section>
 
@@ -423,62 +425,84 @@ function render(){
   s.oninput = () => { estado.q = s.value; document.getElementById("linhas").innerHTML = linhas(c); };
 }
 
-// ---------- separador Inventário: T1A, T1B, T1C por clã, T1H por clã, TM por função, TR
+// ---------- separador Inventário: só os pokemons que o André tem, categorizados (17/11)
+// Ordem: T1A, T1B, T1C por clã, T1H por clã, TM pela função, TR, Outros. Cada pokemon aparece uma vez.
 const COR_INV = "#f5c451";
 // TM pela função PvE da wiki; o Burst divide-se em «com CC» (golpe em área com Stun/Silence/Locked/Stuck) e Finalizador (sem CC)
 const TM_GRUPOS = [["Tanque","TM Tank",""],["Tanque Ofensivo","TM Off-Tank",""],["Causador de Dano Explosivo","TM Burst","cc"],["Causador de Dano Explosivo","TM Finalizador","fin"],["Causador de Dano Contínuo","TM OTDD",""]];
 const etiquetaBurst = n => { const b = D.burst[n]; if (!b) return "";
   return b.tipo === "cc" ? `<span class="tier" title="Controlo de grupo: ${esc(b.golpes.join(", "))}">Burst com CC</span>` : `<span class="tier t1" title="Burst sem stun nem silence em área">Finalizador</span>`; };
+const nomesTodos = () => [...new Set([...Object.keys(D.pokes), ...Object.keys(D.sprite_de), ...D.clas.flatMap(c => c.team.map(t => t.nome))])].sort();
 
 function cartaInv(n, mostrarCla = true){
-  const p = D.pokes[n], own = tenho(n);
-  const clas = Object.keys(p.clas), i = p.clas[clas[0]];
-  const f = (i.pve || []).filter(x => D.icones[x]);
-  return `<button class="slot${own ? " own" : ""}" data-inv="${esc(n)}" aria-pressed="${!!own}" title="${own ? "Desmarcar" : "Marcar"} ${esc(n)} como meu">
-    ${own ? '<span class="tag-own">Tenho</span>' : ""}
-    <span class="sp">${img(p.sprite, n)}</span>
+  const p = D.pokes[n];
+  const clas = p ? Object.keys(p.clas) : [];
+  const f = p ? (p.clas[clas[0]].pve || []).filter(x => D.icones[x]) : [];
+  return `<div class="slot own">
+    <span class="sp">${img(p ? p.sprite : D.sprite_de[n], n)}</span>
     <span class="n">${esc(n)}</span>
-    ${mostrarCla ? `<span class="cl">${esc(clas.join(", "))}</span>` : ""}
-    <span class="meta">${f.map(ico).join("")}${etiquetaBurst(n)}</span></button>`;
+    ${mostrarCla && clas.length ? `<span class="cl">${esc(clas.join(", "))}</span>` : ""}
+    <span class="meta">${f.map(ico).join("")}${etiquetaBurst(n)}</span>
+    <button class="own-btn tirar" data-inv="${esc(n)}" title="Tirar ${esc(n)} do inventário">Tirar</button></div>`;
 }
 
-function grupoInv(titulo, nomes, nota, mostrarCla = true){
-  const lst = estado.invFalta ? nomes.filter(n => !tenho(n)) : nomes;
-  const feitos = nomes.filter(tenho).length;
-  return `<div class="group inv-g"><h4>${titulo}<small>${feitos}/${nomes.length}</small></h4>
-    ${nota ? `<p class="nota">${nota}</p>` : ""}
-    ${lst.length ? `<div class="party">${lst.map(n => cartaInv(n, mostrarCla)).join("")}</div>` : `<p class="nota">Tens todos.</p>`}</div>`;
+const grupoInv = (titulo, nomes, mostrarCla = true) => nomes.length
+  ? `<div class="group inv-g"><h4>${titulo}<small>${nomes.length}</small></h4><div class="party">${nomes.map(n => cartaInv(n, mostrarCla)).join("")}</div></div>` : "";
+
+// categoria de um pokemon: a mais alta que ele tem em algum clã
+function categoria(n){
+  const p = D.pokes[n];
+  if (!p) return {cat: "Outros", sub: "Outros"};
+  const ent = Object.entries(p.clas), tem = t => ent.find(([, i]) => i.tier === t);
+  for (const t of ["1A", "1B"]) if (tem(t)) return {cat: "T" + t};
+  for (const t of ["1C", "1H"]) { const e = tem(t); if (e) return {cat: "T" + t, sub: e[0]}; }
+  const tm = tem("TM");
+  if (tm) {
+    const f = tm[1].pve[0];
+    const b = f === "Causador de Dano Explosivo" ? ((D.burst[n] || {tipo: "cc"}).tipo === "fin" ? "TM Finalizador" : "TM Burst") : (TM_GRUPOS.find(g => g[0] === f) || [, "TM"])[1];
+    return {cat: "TM", sub: b};
+  }
+  if (tem("TR")) return {cat: "TR"};
+  const t = ent.map(([, i]) => i.tier).sort()[0];
+  return {cat: "Outros", sub: /^\d$/.test(t) ? "Tier " + t : "Outros"};
 }
 
 function renderInv(){
   document.documentElement.style.setProperty("--c", COR_INV);
-  const todos = Object.keys(D.pokes);
-  const doTier = t => todos.filter(n => Object.values(D.pokes[n].clas).some(i => i.tier === t)).sort();
-  const porCla = t => D.clas.map(c => [c, c.pokes.filter(n => D.pokes[n].clas[c.nome].tier === t).sort()]).filter(([, l]) => l.length);
-  const tm = doTier("TM");
-  const funcaoTm = n => Object.values(D.pokes[n].clas).find(i => i.tier === "TM").pve[0];
-  const total = [...doTier("1A"), ...doTier("1B"), ...doTier("1C"), ...doTier("1H"), ...tm, ...doTier("TR")];
-  const unicos = [...new Set(total)];
+  const meus = nomesTodos().filter(tenho);
+  const por = {};
+  for (const n of meus) { const c = categoria(n); ((por[c.cat] ??= {})[c.sub || ""] ??= []).push(n); }
+  const sub = (cat, ordem, mostrarCla) => Object.entries(por[cat] || {})
+    .sort(([a], [b]) => (ordem ? ordem.indexOf(a) - ordem.indexOf(b) : a.localeCompare(b)))
+    .map(([s, l]) => grupoInv(s || "Todos", l, mostrarCla)).join("");
+  const secao = (cat, titulo, html) => por[cat] ? `<h3 class="sec">${titulo}</h3>${html}` : "";
+  const clas = D.clas.map(c => c.nome);
   document.getElementById("cla").innerHTML = `
-    <section class="pl-total"><b>${unicos.filter(tenho).length}</b><span>de ${unicos.length} pokemons do 1A ao 1C, T1H, TM e TR</span></section>
-    <div class="filters"><button class="chip" data-falta aria-pressed="${!!estado.invFalta}">Só os que me faltam</button></div>
-
-    <h3 class="sec">Tier 1A</h3>
-    ${grupoInv("Todos os clãs", doTier("1A"), "Os mais raros, quase todos Shiny ou Mega; o topo do PvP.")}
-    <h3 class="sec">Tier 1B</h3>
-    ${grupoInv("Todos os clãs", doTier("1B"), "Shiny ou Mega, muito fortes em PvP.")}
-    <h3 class="sec">Tier 1C</h3>
-    ${porCla("1C").map(([c, l]) => grupoInv(c.nome, l, "", false)).join("")}
-    <h3 class="sec">T1H, para hunts</h3>
-    <p class="lead">Do 400 ao 600 o T1H do clã é o que mais dá XP e loot (Cosmic Quest ou Desert Quest).</p>
-    ${porCla("1H").map(([c, l]) => grupoInv(c.nome, l, "", false)).join("")}
-    <h3 class="sec">TM, por função</h3>
-    <p class="lead">A wiki dá a cada TM uma função PvE. O Burst separa-se pelos golpes: com stun ou silence em área é Burst com CC; só com dano é Finalizador. O TM Tank é o centro do Ultra Lab; o TM Off-Tank e o TM Burst entram nas rotações de hunt a 600.</p>
-    ${TM_GRUPOS.map(([f, t, b]) => grupoInv(t, tm.filter(n => funcaoTm(n) === f && (!b || (D.burst[n] || {tipo: "cc"}).tipo === b)).sort(),
-        b === "cc" ? "Burst com controlo de grupo: um golpe em área com Stun, Silence ou que prende." : b === "fin" ? "Burst sem controlo de grupo: só dano, para rematar o lure." : "")).join("")}
-    <h3 class="sec">TR</h3>
-    ${grupoInv("Todos", doTier("TR"), "Bursts com força de T2 que se compram na loja de Goldenrod; pedem boost +70.")}`;
-  document.querySelector("[data-falta]").onclick = () => { estado.invFalta = !estado.invFalta; const y = scrollY; renderInv(); scrollTo(0, y); };
+    <section class="pl-total"><b>${meus.length}</b><span>pokemons no meu inventário</span></section>
+    <div class="filters">
+      <input class="search" id="inv-add" list="inv-nomes" placeholder="Juntar um pokemon: escreve o nome" aria-label="Juntar um pokemon pelo nome">
+      <datalist id="inv-nomes">${nomesTodos().filter(n => !tenho(n)).map(n => `<option value="${esc(n)}">`).join("")}</datalist>
+      <button class="chip" id="inv-add-btn">Juntar</button>
+      <span class="nota" id="inv-msg"></span>
+    </div>
+    ${meus.length ? "" : `<div class="empty">Ainda não tens nenhum pokemon no inventário. Escreve o nome na caixa de cima, toca em «Tenho» nas páginas dos clãs, ou usa «Importar» para colar uma lista.</div>`}
+    ${secao("T1A", "Tier 1A", grupoInv("Todos os clãs", (por.T1A || {})[""] || []))}
+    ${secao("T1B", "Tier 1B", grupoInv("Todos os clãs", (por.T1B || {})[""] || []))}
+    ${secao("T1C", "Tier 1C", sub("T1C", clas, false))}
+    ${secao("T1H", "T1H, para hunts", sub("T1H", clas, false))}
+    ${secao("TM", "TM, por função", sub("TM", TM_GRUPOS.map(g => g[1]), true))}
+    ${secao("TR", "TR", grupoInv("Todos", (por.TR || {})[""] || []))}
+    ${secao("Outros", "Outros", sub("Outros", ["Tier 2", "Tier 3", "Outros"], true))}`;
+  const campo = document.getElementById("inv-add");
+  const juntar = () => {
+    const n = nomesTodos().find(x => x.toLowerCase() === campo.value.trim().toLowerCase());
+    if (!n) { document.getElementById("inv-msg").textContent = campo.value.trim() ? "Não conheço esse nome. Escolhe um da lista." : ""; return; }
+    INV.add(n); invGuardar(); invBar(); renderInv();
+    document.getElementById("inv-msg").textContent = `Juntei ${n}.`;
+    document.getElementById("inv-add").focus();
+  };
+  document.getElementById("inv-add-btn").onclick = juntar;
+  campo.onkeydown = e => { if (e.key === "Enter") juntar(); };
 }
 
 const COR_CONT = "#a77bff";
